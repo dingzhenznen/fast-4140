@@ -53,7 +53,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.TOKEN }}
 
-
       - name: Build and push for ${{ matrix.archs.arch }}
         id: build
         uses: docker/build-push-action@v6
@@ -63,13 +62,12 @@ jobs:
           platforms: linux/${{ matrix.archs.arch }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/fastgpt-4132:${{ github.sha }}-${{ matrix.archs.arch }}
+            ghcr.io/${{ github.repository_owner }}/fastgpt-4140:${{ github.sha }}-${{ matrix.archs.arch }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=https://github.com/${{ github.repository }} image
           cache-from: type=gha,scope=${{ matrix.archs.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.archs.arch }}
-     
 
       - name: Export digest
         run: |
@@ -104,7 +102,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.TOKEN }}
-    
 
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -121,11 +118,11 @@ jobs:
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "Git_Tag=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
             echo "Git_Latest=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-          
+
           else
             echo "Git_Tag=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:${{ github.ref_name }}" >> $GITHUB_ENV
             echo "Git_Latest=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-      
+
           fi
 
       - name: Create manifest list and push
