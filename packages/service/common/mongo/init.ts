@@ -66,7 +66,7 @@ export async function connectMongo(props: {
       retryReads: true, // 重试读取: 重试读取失败的操作
       serverSelectionTimeoutMS: 10000 // 服务器选择超时: 10秒,防止副本集故障时长时间阻塞
     });
-    console.log('mongo connected');
+    console.log('mongo connected1');
 
     connectedCb?.();
 
