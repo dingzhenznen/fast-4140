@@ -64,9 +64,10 @@ export async function connectMongo(props: {
       maxIdleTimeMS: 300000, // 空闲连接超时: 5分钟,防止空闲连接长时间占用资源
       retryWrites: true, // 重试写入: 重试写入失败的操作
       retryReads: true, // 重试读取: 重试读取失败的操作
-      serverSelectionTimeoutMS: 10000 // 服务器选择超时: 10秒,防止副本集故障时长时间阻塞
+      serverSelectionTimeoutMS: (process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS as any) || 60000 // 服务器选择超时: 10秒,防止副本集故障时长时间阻塞
     });
     console.log('mongo connected1');
+    console.log('mongo connected1', process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS);
 
     connectedCb?.();
 
