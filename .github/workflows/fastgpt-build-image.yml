@@ -19,15 +19,10 @@ jobs:
     strategy:
       matrix:
         sub_routes:
-          - repo: fastgpt
+          - repo: fastgpt-4140
             base_url: ""
-          - repo: fastgpt-sub-route
-            base_url: "/fastai"
-          - repo: fastgpt-sub-route-gchat
-            base_url: "/gchat"
         archs:
           - arch: amd64
-          - arch: arm64
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.archs.runs-on || 'ubuntu-24.04' }}
     steps:
@@ -56,46 +51,37 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Login to Ali Hub
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.ALI_HUB_USERNAME }}
-          password: ${{ secrets.ALI_HUB_PASSWORD }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_NAME }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+          password: ${{ secrets.TOKEN }}
 
-      - name: Build for ${{ matrix.archs.arch }}
+
+      - name: Build and push for ${{ matrix.archs.arch }}
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: projects/app/Dockerfile
           platforms: linux/${{ matrix.archs.arch }}
-          build-args: |
-            ${{ matrix.sub_routes.base_url && format('base_url={0}', matrix.sub_routes.base_url) || '' }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/fastgpt-4132:${{ github.sha }}-${{ matrix.archs.arch }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=${{ matrix.sub_routes.repo }} image
-          outputs: type=image,"name=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }},${{ secrets.ALI_IMAGE_NAME }}/${{ matrix.sub_routes.repo }},${{ secrets.DOCKER_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}",push-by-digest=true,push=true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+            org.opencontainers.image.description=https://github.com/${{ github.repository }} image
+          cache-from: type=gha,scope=${{ matrix.archs.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.archs.arch }}
+     
 
       - name: Export digest
         run: |
-          mkdir -p ${{ runner.temp }}/digests/${{ matrix.sub_routes.repo }}
+          mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${{ matrix.sub_routes.repo }}/${digest#sha256:}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ matrix.sub_routes.repo }}-${{ github.sha }}-${{ matrix.archs.arch }}
-          path: ${{ runner.temp }}/digests/${{ matrix.sub_routes.repo }}/*
+          name: digests-${{ matrix.archs.arch }}
+          path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
 
@@ -109,9 +95,7 @@ jobs:
     strategy:
       matrix:
         sub_routes:
-          - repo: fastgpt
-          - repo: fastgpt-sub-route
-          - repo: fastgpt-sub-route-gchat
+          - repo: fastgpt-4140
     runs-on: ubuntu-24.04
     steps:
       - name: Login to GitHub Container Registry
@@ -119,24 +103,14 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Login to Ali Hub
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.ALI_HUB_USERNAME }}
-          password: ${{ secrets.ALI_HUB_PASSWORD }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_NAME }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+          password: ${{ secrets.TOKEN }}
+    
 
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digests-${{ matrix.sub_routes.repo }}-${{ github.sha }}-*
+          pattern: digests-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -147,23 +121,17 @@ jobs:
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "Git_Tag=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
             echo "Git_Latest=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Ali_Tag=${{ secrets.ALI_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Ali_Latest=${{ secrets.ALI_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Docker_Hub_Tag=${{ secrets.DOCKER_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Docker_Hub_Latest=${{ secrets.DOCKER_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
+          
           else
             echo "Git_Tag=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:${{ github.ref_name }}" >> $GITHUB_ENV
             echo "Git_Latest=ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Ali_Tag=${{ secrets.ALI_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:${{ github.ref_name }}" >> $GITHUB_ENV
-            echo "Ali_Latest=${{ secrets.ALI_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
-            echo "Docker_Hub_Tag=${{ secrets.DOCKER_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:${{ github.ref_name }}" >> $GITHUB_ENV
-            echo "Docker_Hub_Latest=${{ secrets.DOCKER_IMAGE_NAME }}/${{ matrix.sub_routes.repo }}:latest" >> $GITHUB_ENV
+      
           fi
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
-          TAGS="$(echo -e "${Git_Tag}\n${Git_Latest}\n${Ali_Tag}\n${Ali_Latest}\n${Docker_Hub_Tag}\n${Docker_Hub_Latest}")"
+          TAGS="$(echo -e "${Git_Tag}\n${Git_Latest}")"
           for TAG in $TAGS; do
             docker buildx imagetools create -t $TAG \
               $(printf 'ghcr.io/${{ github.repository_owner }}/${{ matrix.sub_routes.repo }}@sha256:%s ' *)
